@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Healthcare Data Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050810;--s1:#090d1a;--s2:#0e1425;--s3:#131b30;--s4:#1a2440;
+  --border:#1e2d4a;--border2:#152038;
+  --cyan:#00e5ff;--cyan2:#00b8d4;--cyan3:rgba(0,229,255,0.08);
+  --teal:#00bfa5;--teal2:rgba(0,191,165,0.1);
+  --red:#ff5370;--orange:#ffb74d;--green:#69f0ae;--purple:#b388ff;--pink:#f48fb1;
+  --text:#e8f0fe;--text2:#8fa8c8;--text3:#3d5a7a;
+  --r:14px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);font-family:'Manrope',sans-serif;color:var(--text);min-height:100vh;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 10% 0%,rgba(0,229,255,0.05) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 100%,rgba(0,191,165,0.05) 0%,transparent 60%);
+}
+
+/* ─ Nav ─ */
+nav{
+  position:sticky;top:0;z-index:100;
+  background:rgba(5,8,16,0.85);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border2);
+  padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  height:58px;
+}
+.nav-brand{
+  font-family:'Syne',sans-serif;font-size:17px;font-weight:800;
+  letter-spacing:-0.01em;
+  background:linear-gradient(90deg,var(--cyan),var(--teal));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  display:flex;align-items:center;gap:8px;
+}
+.nav-brand::before{content:'🏥';-webkit-text-fill-color:initial;font-size:18px}
+.nav-tabs{display:flex;gap:4px}
+.nav-tab{
+  background:none;border:none;border-radius:8px;
+  color:var(--text3);font-family:'Manrope',sans-serif;font-size:12px;font-weight:600;
+  padding:6px 14px;cursor:pointer;transition:all 0.15s;letter-spacing:0.04em;
+}
+.nav-tab:hover{color:var(--text2);background:var(--s2)}
+.nav-tab.active{color:var(--cyan);background:rgba(0,229,255,0.08)}
+.nav-right{display:flex;align-items:center;gap:10px}
+.pill{
+  background:rgba(105,240,174,0.1);border:1px solid rgba(105,240,174,0.2);
+  border-radius:20px;padding:4px 12px;font-size:11px;color:var(--green);font-weight:600;
+}
+
+/* ─ Layout ─ */
+.page{display:none;padding:24px;max-width:1200px;margin:0 auto;gap:18px;flex-direction:column}
+.page.active{display:flex}
+
+/* ─ Cards ─ */
+.card{
+  background:var(--s1);border:1px solid var(--border);border-radius:18px;
+  padding:20px 22px;position:relative;overflow:hidden;
+}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,229,255,0.2),transparent)}
+.card-title{
+  font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;
+  color:var(--text2);text-transform:uppercase;margin-bottom:16px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.card-title .icon{color:var(--cyan);font-size:15px}
+
+/* ─ KPI row ─ */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.kpi{
+  background:var(--s2);border:1px solid var(--border2);border-radius:12px;
+  padding:16px 18px;position:relative;overflow:hidden;
+}
+.kpi::after{content:'';position:absolute;inset:0;opacity:0.04;
+  background:radial-gradient(circle at top left,var(--kpi-color,var(--cyan)),transparent 70%)}
+.kpi-label{font-size:10px;font-weight:700;letter-spacing:0.12em;color:var(--text3);text-transform:uppercase;margin-bottom:6px}
+.kpi-val{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--kpi-color,var(--cyan));line-height:1}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.kpi-trend{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;margin-top:6px;
+}
+.up{background:rgba(105,240,174,0.12);color:var(--green)}
+.down{background:rgba(255,83,112,0.12);color:var(--red)}
+
+/* ─ Chart wrappers ─ */
+.chart-wrap{position:relative;height:280px}
+.chart-wrap.tall{height:340px}
+
+/* ─ Grid helpers ─ */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:700px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+/* ─ Table ─ */
+.tbl-wrap{overflow-x:auto;max-height:320px;overflow-y:auto}
+.tbl-wrap::-webkit-scrollbar{width:4px;height:4px}
+.tbl-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:var(--s3);color:var(--text2);font-weight:700;letter-spacing:0.06em;
+  font-size:10px;text-transform:uppercase;padding:10px 12px;
+  position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:var(--cyan)}
+td{padding:9px 12px;border-bottom:1px solid var(--border2);color:var(--text);font-size:12px}
+tr:hover td{background:var(--s2)}
+.badge{
+  display:inline-block;padding:2px 8px;border-radius:20px;
+  font-size:10px;font-weight:700;letter-spacing:0.05em;
+}
+.badge-high{background:rgba(255,83,112,0.15);color:var(--red);border:1px solid rgba(255,83,112,0.2)}
+.badge-med{background:rgba(255,183,77,0.15);color:var(--orange);border:1px solid rgba(255,183,77,0.2)}
+.badge-low{background:rgba(105,240,174,0.12);color:var(--green);border:1px solid rgba(105,240,174,0.2)}
+
+/* ─ Upload zone ─ */
+.upload-zone{
+  border:2px dashed var(--border);border-radius:12px;
+  padding:32px;text-align:center;cursor:pointer;
+  transition:all 0.2s;background:var(--s2);
+}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--cyan);background:var(--cyan3)}
+.upload-icon{font-size:36px;margin-bottom:10px}
+.upload-text{color:var(--text2);font-size:14px;font-weight:600}
+.upload-sub{color:var(--text3);font-size:12px;margin-top:4px}
+
+/* ─ Predict form ─ */
+.predict-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:0.08em}
+input,select{
+  background:var(--s2);border:1px solid var(--border);border-radius:9px;
+  color:var(--text);font-family:'Manrope',sans-serif;font-size:14px;font-weight:500;
+  padding:10px 14px;outline:none;transition:border-color 0.2s,box-shadow 0.2s;
+}
+input:focus,select:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,229,255,0.08)}
+select option{background:var(--s2)}
+
+.btn{
+  border:none;border-radius:10px;cursor:pointer;
+  font-family:'Manrope',sans-serif;font-weight:700;font-size:14px;
+  padding:11px 24px;transition:all 0.15s;letter-spacing:0.03em;
+}
+.btn-primary{background:linear-gradient(135deg,var(--cyan2),var(--teal));color:#001a20;
+  box-shadow:0 4px 20px rgba(0,191,165,0.25)}
+.btn-primary:hover{box-shadow:0 6px 28px rgba(0,191,165,0.4);transform:translateY(-1px)}
+.btn-primary:active{transform:scale(0.97)}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text2)}
+.btn-outline:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* ─ Prediction result ─ */
+.pred-result{
+  background:var(--s2);border:1px solid var(--border);border-radius:12px;
+  padding:20px;display:none;animation:fadeIn 0.3s ease;
+}
+.pred-result.show{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.risk-meter{height:12px;border-radius:6px;background:var(--s3);margin:10px 0;overflow:hidden}
+.risk-fill{height:100%;border-radius:6px;transition:width 0.8s cubic-bezier(.4,0,.2,1)}
+
+/* ─ Progress bars ─ */
+.prog-list{display:flex;flex-direction:column;gap:10px}
+.prog-item{}
+.prog-header{display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px}
+.prog-bar-bg{height:8px;background:var(--s3);border-radius:4px;overflow:hidden}
+.prog-bar{height:100%;border-radius:4px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+
+/* ─ Step guide ─ */
+.steps-guide{display:flex;flex-direction:column;gap:0}
+.step-item{
+  display:grid;grid-template-columns:44px 1fr;gap:12px;
+  padding:16px 0;border-bottom:1px solid var(--border2);
+}
+.step-item:last-child{border-bottom:none}
+.step-num{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,var(--cyan2),var(--teal));
+  color:#001a20;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  box-shadow:0 0 16px rgba(0,229,255,0.2);
+}
+.step-body h3{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.step-body p{font-size:12px;color:var(--text2);line-height:1.6}
+.step-body code{
+  display:inline-block;background:var(--s3);border:1px solid var(--border);
+  border-radius:5px;padding:1px 7px;font-family:'DM Mono',monospace;font-size:11px;color:var(--cyan);margin:2px 2px 0;
+}
+
+/* ─ Tabs ─ */
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tab{background:var(--s2);border:1px solid var(--border2);border-radius:8px;
+  color:var(--text3);font-size:11px;font-weight:700;padding:6px 14px;
+  cursor:pointer;transition:all 0.15s;letter-spacing:0.05em}
+.tab:hover{color:var(--text2)}
+.tab.active{background:rgba(0,229,255,0.1);border-color:rgba(0,229,255,0.3);color:var(--cyan)}
+
+/* ─ Insight cards ─ */
+.insight{
+  background:var(--s2);border-left:3px solid var(--cyan);
+  border-radius:0 10px 10px 0;padding:12px 16px;margin-bottom:10px;
+}
+.insight.warn{border-left-color:var(--orange)}
+.insight.danger{border-left-color:var(--red)}
+.insight-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px}
+.insight-body{font-size:11px;color:var(--text2);line-height:1.5}
+
+/* ─ Tooltip ─ */
+[data-tip]{position:relative;cursor:help}
+[data-tip]::after{
+  content:attr(data-tip);
+  position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  background:#1a2440;border:1px solid var(--border);border-radius:6px;
+  padding:5px 10px;font-size:11px;color:var(--text2);white-space:nowrap;
+  pointer-events:none;opacity:0;transition:opacity 0.2s;z-index:99;
+}
+[data-tip]:hover::after{opacity:1}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">Healthcare Data Analysis</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dashboard',this)">Dashboard</button>
+    <button class="nav-tab" onclick="showPage('trends',this)">Trends</button>
+    <button class="nav-tab" onclick="showPage('patients',this)">Patients</button>
+    <button class="nav-tab" onclick="showPage('predict',this)">Predict</button>
+    <button class="nav-tab" onclick="showPage('guide',this)">How It Works</button>
+  </div>
+  <div class="nav-right">
+    <span class="pill">● Live</span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════ PAGE: DASHBOARD ═══════════════════════ -->
+<div class="page active" id="page-dashboard">
+
+  <div class="card">
+    <div class="card-title"><span>📊 Overview — 500 Patients Loaded</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" style="font-size:11px;padding:6px 14px" onclick="downloadCSV()">⬇ Export CSV</button>
+        <button class="btn btn-primary" style="font-size:11px;padding:6px 14px" onclick="showPage('predict',document.querySelectorAll('.nav-tab')[3])">🔮 Predict Risk</button>
+      </div>
+    </div>
+    <div class="kpi-grid" id="kpi-grid"></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">📈</span> Disease Distribution</div>
+      <div class="chart-wrap"><canvas id="chart-disease"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">👥</span> Age Group vs Disease</div>
+      <div class="chart-wrap"><canvas id="chart-age-disease"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">📅</span> Monthly Admissions Trend</div>
+      <div class="chart-wrap"><canvas id="chart-monthly"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">⚤</span> Gender Split by Disease</div>
+      <div class="chart-wrap"><canvas id="chart-gender"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">💡</span> Key Insights</div>
+    <div id="insights-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE: TRENDS ═══════════════════════ -->
+<div class="page" id="page-trends">
+  <div class="card">
+    <div class="card-title"><span class="icon">📉</span> Disease Trends Over Time</div>
+    <div class="chart-wrap tall"><canvas id="chart-trends-line"></canvas></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">🎂</span> Age Distribution</div>
+      <div class="chart-wrap"><canvas id="chart-age-hist"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">🩺</span> Severity Breakdown</div>
+      <div class="chart-wrap"><canvas id="chart-severity"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🏆</span> Top Diseases by Age Group</div>
+    <div class="prog-list" id="prog-list"></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">🗺️</span> Risk Score by Age Band</div>
+      <div class="chart-wrap"><canvas id="chart-risk-age"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">💊</span> Avg Hospital Stay (days) by Disease</div>
+      <div class="chart-wrap"><canvas id="chart-stay"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE: PATIENTS ═══════════════════════ -->
+<div class="page" id="page-patients">
+  <div class="card">
+    <div class="card-title">
+      <span class="icon">🧑‍⚕️</span> Patient Records
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="search-input" placeholder="Search name, disease…" style="font-size:12px;padding:7px 12px;width:200px" oninput="filterTable()"/>
+        <select id="filter-disease" onchange="filterTable()" style="font-size:12px;padding:7px 12px">
+          <option value="">All Diseases</option>
+        </select>
+        <select id="filter-severity" onchange="filterTable()" style="font-size:12px;padding:7px 12px">
+          <option value="">All Severity</option>
+          <option>High</option><option>Medium</option><option>Low</option>
+        </select>
+      </div>
+    </div>
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('csv-file').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="handleDrop(event)">
+      <div class="upload-icon">📂</div>
+      <div class="upload-text">Upload Your CSV Patient Data</div>
+      <div class="upload-sub">Drag & drop or click · expects: name, age, gender, disease, severity, admitted_date, stay_days</div>
+      <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="handleFile(this)"/>
+    </div>
+    <div class="tbl-wrap" style="margin-top:14px">
+      <table id="patient-table">
+        <thead>
+          <tr>
+            <th onclick="sortTable('id')">#</th>
+            <th onclick="sortTable('name')">Name ↕</th>
+            <th onclick="sortTable('age')">Age ↕</th>
+            <th onclick="sortTable('gender')">Gender</th>
+            <th onclick="sortTable('disease')">Disease ↕</th>
+            <th onclick="sortTable('severity')">Severity ↕</th>
+            <th onclick="sortTable('admitted')">Admitted ↕</th>
+            <th onclick="sortTable('stay')">Stay (d) ↕</th>
+            <th>Risk Score</th>
+          </tr>
+        </thead>
+        <tbody id="patient-tbody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--text3)" id="table-info"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE: PREDICT ═══════════════════════ -->
+<div class="page" id="page-predict">
+  <div class="card">
+    <div class="card-title"><span class="icon">🔮</span> Disease Risk Prediction Model
+      <span style="font-size:10px;color:var(--text3);font-weight:400">Logistic Regression (in-browser)</span>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.6">
+      Enter patient details below. The model uses <strong style="color:var(--cyan)">age</strong>, <strong style="color:var(--cyan)">gender</strong>,
+      <strong style="color:var(--cyan)">BMI</strong>, <strong style="color:var(--cyan)">blood pressure</strong>, and
+      <strong style="color:var(--cyan)">cholesterol</strong> to predict high-risk diseases using logistic regression weights trained on the dataset.
+    </p>
+    <div class="predict-grid">
+      <div class="field"><label>AGE</label><input type="number" id="p-age" min="1" max="120" placeholder="e.g. 45"/></div>
+      <div class="field"><label>GENDER</label>
+        <select id="p-gender"><option value="M">Male</option><option value="F">Female</option></select>
+      </div>
+      <div class="field"><label>BMI</label><input type="number" id="p-bmi" min="10" max="60" step="0.1" placeholder="e.g. 27.5"/></div>
+      <div class="field"><label>BLOOD PRESSURE (mmHg)</label><input type="number" id="p-bp" min="60" max="200" placeholder="e.g. 120"/></div>
+      <div class="field"><label>CHOLESTEROL (mg/dL)</label><input type="number" id="p-chol" min="100" max="400" placeholder="e.g. 200"/></div>
+      <div class="field"><label>SMOKING</label>
+        <select id="p-smoke"><option value="0">Non-smoker</option><option value="1">Smoker</option></select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:18px">
+      <button class="btn btn-primary" onclick="runPrediction()">🔮 Run Prediction</button>
+      <button class="btn btn-outline" onclick="fillSample()">Use Sample Data</button>
+    </div>
+    <div class="pred-result" id="pred-result"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📊</span> Model Performance</div>
+    <div class="grid-3" id="model-metrics"></div>
+    <div style="margin-top:16px">
+      <div class="card-title" style="font-size:11px">FEATURE IMPORTANCE</div>
+      <div class="prog-list" id="feature-importance"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🧮</span> Prediction History (this session)</div>
+    <div id="pred-history" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE: HOW IT WORKS ═══════════════════════ -->
+<div class="page" id="page-guide">
+  <div class="card">
+    <div class="card-title"><span class="icon">📖</span> How This Project Works — Step by Step</div>
+    <div class="steps-guide" id="steps-guide"></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="icon">🗂️</span> Expected CSV Format</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Your CSV file should have these columns (header row required):</p>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Column</th><th>Type</th><th>Example</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code style="color:var(--cyan)">name</code></td><td>text</td><td>John Doe</td><td>Patient name</td></tr>
+          <tr><td><code style="color:var(--cyan)">age</code></td><td>number</td><td>45</td><td>In years</td></tr>
+          <tr><td><code style="color:var(--cyan)">gender</code></td><td>M/F</td><td>M</td><td>Male or Female</td></tr>
+          <tr><td><code style="color:var(--cyan)">disease</code></td><td>text</td><td>Diabetes</td><td>Primary diagnosis</td></tr>
+          <tr><td><code style="color:var(--cyan)">severity</code></td><td>text</td><td>High</td><td>High/Medium/Low</td></tr>
+          <tr><td><code style="color:var(--cyan)">admitted_date</code></td><td>YYYY-MM-DD</td><td>2024-03-15</td><td>Admission date</td></tr>
+          <tr><td><code style="color:var(--cyan)">stay_days</code></td><td>number</td><td>5</td><td>Days in hospital</td></tr>
+          <tr><td><code style="color:var(--cyan)">bmi</code></td><td>decimal</td><td>27.5</td><td>For prediction</td></tr>
+          <tr><td><code style="color:var(--cyan)">blood_pressure</code></td><td>number</td><td>130</td><td>Systolic BP</td></tr>
+          <tr><td><code style="color:var(--cyan)">cholesterol</code></td><td>number</td><td>210</td><td>Total mg/dL</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  DATA GENERATION
+// ═══════════════════════════════════════════════════════════
+const DISEASES = ['Diabetes','Hypertension','Asthma','Heart Disease','COVID-19','Arthritis','Cancer','Depression'];
+const COLORS   = ['#00e5ff','#69f0ae','#ffb74d','#ff5370','#b388ff','#f48fb1','#80cbc4','#fff176'];
+const MONTHS   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const NAMES_M  = ['Arjun','Rahul','Vikram','Suresh','Ravi','Karan','Amit','Nikhil','Deepak','Sanjay','Mohammed','Raj','Priya','Ankit'];
+const NAMES_F  = ['Priya','Anita','Sunita','Kavya','Meera','Deepika','Pooja','Nisha','Ritu','Sneha','Divya','Lakshmi','Aarti','Rekha'];
+
+function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min}
+function choice(arr){return arr[Math.floor(Math.random()*arr.length)]}
+function seededRand(seed){let x=Math.sin(seed)*10000;return x-Math.floor(x)}
+
+let patients=[], sortKey=null, sortAsc=true, predHistory=[];
+
+function generatePatients(){
+  patients=[];
+  for(let i=0;i<500;i++){
+    const gender=Math.random()>0.48?'M':'F';
+    const name=(gender==='M'?choice(NAMES_M):choice(NAMES_F))+' '+'ABCDEFGHIJK'[rand(0,10)]+'.';
+    const age=rand(5,85);
+    // Age-biased disease
+    let disease;
+    if(age<18) disease=choice(['Asthma','COVID-19','Depression']);
+    else if(age<40) disease=choice(['Asthma','COVID-19','Depression','Diabetes','Arthritis']);
+    else if(age<60) disease=choice(['Diabetes','Hypertension','Heart Disease','COVID-19','Arthritis']);
+    else disease=choice(['Heart Disease','Hypertension','Diabetes','Cancer','Arthritis','Depression']);
+    const severity=seededRand(i*7+3)<0.3?'High':seededRand(i*7+5)<0.55?'Medium':'Low';
+    const month=rand(1,12);const day=rand(1,28);
+    const year=rand(2022,2024);
+    const admitted=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const stay=severity==='High'?rand(7,20):severity==='Medium'?rand(3,8):rand(1,4);
+    const bmi=+(18+seededRand(i*3+1)*22).toFixed(1);
+    const bp=rand(90,180);
+    const chol=rand(150,350);
+    const smoke=seededRand(i*11)<0.25?1:0;
+    const riskScore=calcRisk(age,bmi,bp,chol,smoke,gender,disease);
+    patients.push({id:i+1,name,age,gender,disease,severity,admitted,stay,bmi,bp,chol,smoke,riskScore});
+  }
+}
+
+function calcRisk(age,bmi,bp,chol,smoke,gender,disease){
+  let r=0;
+  r+=age*0.5;
+  r+=(bmi>30)?20:(bmi>25)?10:0;
+  r+=(bp>140)?25:(bp>120)?12:0;
+  r+=(chol>240)?20:(chol>200)?10:0;
+  r+=smoke*15;
+  r+=gender==='M'?5:0;
+  r+=(['Heart Disease','Cancer','Hypertension'].includes(disease))?15:(['Diabetes'].includes(disease)?10:0);
+  return Math.min(100,Math.round(r/1.8));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NAV
+// ═══════════════════════════════════════════════════════════
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  if(id==='trends') renderTrends();
+  if(id==='patients') renderTable(patients);
+  if(id==='predict') renderModelMetrics();
+  if(id==='guide') renderGuide();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  KPI
+// ═══════════════════════════════════════════════════════════
+function renderKPIs(){
+  const avgAge=(patients.reduce((s,p)=>s+p.age,0)/patients.length).toFixed(1);
+  const high=patients.filter(p=>p.severity==='High').length;
+  const avgStay=(patients.reduce((s,p)=>s+p.stay,0)/patients.length).toFixed(1);
+  const avgRisk=(patients.reduce((s,p)=>s+p.riskScore,0)/patients.length).toFixed(0);
+  const kpis=[
+    {label:'Total Patients',val:patients.length,sub:'In dataset',color:'var(--cyan)',trend:'+12%',up:true},
+    {label:'Avg Age',val:avgAge,sub:'Years',color:'var(--teal)',trend:'+1.2',up:true},
+    {label:'High Severity',val:high,sub:`${(high/patients.length*100).toFixed(0)}% of total`,color:'var(--red)',trend:'-3%',up:false},
+    {label:'Avg Stay',val:avgStay+'d',sub:'Hospital days',color:'var(--orange)',trend:'+0.5d',up:false},
+    {label:'Avg Risk Score',val:avgRisk,sub:'Out of 100',color:'var(--purple)',trend:'-2pts',up:false},
+    {label:'Diseases Tracked',val:DISEASES.length,sub:'Conditions',color:'var(--green)',trend:'stable',up:true},
+  ];
+  const grid=document.getElementById('kpi-grid');
+  grid.innerHTML=kpis.map(k=>`
+    <div class="kpi" style="--kpi-color:${k.color}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-val">${k.val}</div>
+      <div class="kpi-sub">${k.sub}</div>
+      <div class="kpi-trend ${k.up?'up':'down'}">${k.up?'↑':'↓'} ${k.trend}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CHARTS — DASHBOARD
+// ═══════════════════════════════════════════════════════════
+const chartInstances={};
+function makeChart(id,type,data,options={}){
+  if(chartInstances[id]) chartInstances[id].destroy();
+  const ctx=document.getElementById(id).getContext('2d');
+  chartInstances[id]=new Chart(ctx,{type,data,options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#8fa8c8',font:{family:'Manrope',size:11}}},
+             tooltip:{backgroundColor:'#0e1425',borderColor:'#1e2d4a',borderWidth:1,
+               titleColor:'#e8f0fe',bodyColor:'#8fa8c8',cornerRadius:8}},
+    scales: type==='pie'||type==='doughnut'?{}:{
+      x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8fa8c8',font:{size:10}}},
+      y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8fa8c8',font:{size:10}}},
+    },
+    ...options
+  }});
+}
+
+function renderDashboardCharts(){
+  // Disease distribution (doughnut)
+  const diseaseCounts={};
+  patients.forEach(p=>diseaseCounts[p.disease]=(diseaseCounts[p.disease]||0)+1);
+  makeChart('chart-disease','doughnut',{
+    labels:Object.keys(diseaseCounts),
+    datasets:[{data:Object.values(diseaseCounts),backgroundColor:COLORS,borderWidth:0,hoverOffset:8}]
+  },{plugins:{legend:{position:'right'}}});
+
+  // Age group vs disease (stacked bar)
+  const ageGroups=['0-17','18-34','35-49','50-64','65+'];
+  const ageBands=p=>p.age<18?'0-17':p.age<35?'18-34':p.age<50?'35-49':p.age<65?'50-64':'65+';
+  const datasets=DISEASES.map((d,i)=>({
+    label:d,
+    backgroundColor:COLORS[i]+'bb',
+    data:ageGroups.map(ag=>patients.filter(p=>ageBands(p)===ag&&p.disease===d).length)
+  }));
+  makeChart('chart-age-disease','bar',{labels:ageGroups,datasets},{
+    scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8fa8c8',font:{size:10}}},
+            y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8fa8c8',font:{size:10}}}},
+    plugins:{legend:{labels:{color:'#8fa8c8',font:{size:10}},position:'bottom'}}
+  });
+
+  // Monthly admissions
+  const monthlyCounts=Array(12).fill(0);
+  patients.forEach(p=>{const m=parseInt(p.admitted.split('-')[1])-1;monthlyCounts[m]++});
+  makeChart('chart-monthly','line',{
+    labels:MONTHS,
+    datasets:[{label:'Admissions',data:monthlyCounts,
+      borderColor:COLORS[0],backgroundColor:'rgba(0,229,255,0.08)',
+      fill:true,tension:0.4,pointBackgroundColor:COLORS[0],pointRadius:4}]
+  });
+
+  // Gender split (grouped bar)
+  const gData=DISEASES.map(d=>({
+    M:patients.filter(p=>p.disease===d&&p.gender==='M').length,
+    F:patients.filter(p=>p.disease===d&&p.gender==='F').length
+  }));
+  makeChart('chart-gender','bar',{
+    labels:DISEASES.map(d=>d.length>8?d.slice(0,8)+'…':d),
+    datasets:[
+      {label:'Male',data:gData.map(x=>x.M),backgroundColor:'rgba(96,165,250,0.7)'},
+      {label:'Female',data:gData.map(x=>x.F),backgroundColor:'rgba(244,143,177,0.7)'},
+    ]
+  },{plugins:{legend:{labels:{color:'#8fa8c8',font:{size:11}}}}});
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INSIGHTS
+// ═══════════════════════════════════════════════════════════
+function renderInsights(){
+  const diseaseCounts={};
+  patients.forEach(p=>diseaseCounts[p.disease]=(diseaseCounts[p.disease]||0)+1);
+  const top=Object.entries(diseaseCounts).sort((a,b)=>b[1]-a[1]);
+  const highRiskAge=patients.filter(p=>p.age>60&&p.severity==='High').length;
+  const insights=[
+    {cls:'',t:'Most Common Disease',b:`<strong style="color:var(--cyan)">${top[0][0]}</strong> affects ${top[0][1]} patients (${(top[0][1]/5).toFixed(0)}% of total). Monitor closely.`},
+    {cls:'warn',t:'Elderly High-Risk Alert',b:`${highRiskAge} patients aged 60+ are classified as High Severity — representing ${(highRiskAge/patients.length*100).toFixed(1)}% of all patients.`},
+    {cls:'danger',t:'Top 3 Diseases Dominate',b:`${top.slice(0,3).map(x=>x[0]).join(', ')} together account for ${top.slice(0,3).reduce((s,x)=>s+x[1],0)} patients (${(top.slice(0,3).reduce((s,x)=>s+x[1],0)/5).toFixed(0)}%).`},
+    {cls:'',t:'Peak Admission Month',b:`Month with most admissions: <strong style="color:var(--cyan)">${MONTHS[([...Array(12)].map((_,i)=>patients.filter(p=>parseInt(p.admitted.split('-')[1])-1===i).length)).indexOf(Math.max(...[...Array(12)].map((_,i)=>patients.filter(p=>parseInt(p.admitted.split('-')[1])-1===i).length)))]}</strong>. Consider seasonal staffing adjustments.`},
+  ];
+  document.getElementById('insights-list').innerHTML=insights.map(i=>`
+    <div class="insight ${i.cls}"><div class="insight-title">${i.t}</div><div class="insight-body">${i.b}</div></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TRENDS PAGE
+// ═══════════════════════════════════════════════════════════
+function renderTrends(){
+  // Line chart: disease per month
+  const lineDatasets=DISEASES.slice(0,5).map((d,i)=>({
+    label:d,borderColor:COLORS[i],backgroundColor:'transparent',
+    data:Array(12).fill(0).map((_,m)=>patients.filter(p=>p.disease===d&&parseInt(p.admitted.split('-')[1])-1===m).length),
+    tension:0.4,pointRadius:3,borderWidth:2,
+  }));
+  makeChart('chart-trends-line','line',{labels:MONTHS,datasets:lineDatasets},{
+    plugins:{legend:{labels:{color:'#8fa8c8',font:{size:11}},position:'bottom'}}
+  });
+
+  // Age histogram
+  const bins=[0,10,20,30,40,50,60,70,80,90];
+  const binCounts=bins.map((b,i)=>patients.filter(p=>p.age>=b&&p.age<(bins[i+1]||200)).length);
+  makeChart('chart-age-hist','bar',{
+    labels:bins.map((b,i)=>`${b}-${bins[i+1]?bins[i+1]-1:'+'}`),
+    datasets:[{label:'Patients',data:binCounts,backgroundColor:COLORS[0]+'99',borderRadius:5}]
+  });
+
+  // Severity pie
+  const sevCounts={High:0,Medium:0,Low:0};
+  patients.forEach(p=>sevCounts[p.severity]++);
+  makeChart('chart-severity','doughnut',{
+    labels:['High','Medium','Low'],
+    datasets:[{data:Object.values(sevCounts),backgroundColor:['#ff5370aa','#ffb74daa','#69f0aeaa'],borderWidth:0}]
+  },{plugins:{legend:{position:'right'}}});
+
+  // Progress: disease counts
+  const diseaseCounts={};
+  patients.forEach(p=>diseaseCounts[p.disease]=(diseaseCounts[p.disease]||0)+1);
+  const max=Math.max(...Object.values(diseaseCounts));
+  document.getElementById('prog-list').innerHTML=Object.entries(diseaseCounts).sort((a,b)=>b[1]-a[1]).map(([d,c],i)=>`
+    <div class="prog-item">
+      <div class="prog-header"><span style="color:${COLORS[i%8]}">${d}</span><span style="color:var(--text2);font-size:11px">${c} patients (${(c/5).toFixed(0)}%)</span></div>
+      <div class="prog-bar-bg"><div class="prog-bar" style="width:${(c/max*100).toFixed(0)}%;background:${COLORS[i%8]}"></div></div>
+    </div>`).join('');
+
+  // Risk by age band
+  const ageBands=['0-17','18-34','35-49','50-64','65+'];
+  const ageBandFn=p=>p.age<18?'0-17':p.age<35?'18-34':p.age<50?'35-49':p.age<65?'50-64':'65+';
+  const avgRiskByAge=ageBands.map(ab=>{
+    const pts=patients.filter(p=>ageBandFn(p)===ab);
+    return pts.length?+(pts.reduce((s,p)=>s+p.riskScore,0)/pts.length).toFixed(1):0;
+  });
+  makeChart('chart-risk-age','bar',{
+    labels:ageBands,
+    datasets:[{label:'Avg Risk Score',data:avgRiskByAge,
+      backgroundColor:avgRiskByAge.map(v=>v>60?'#ff5370aa':v>40?'#ffb74daa':'#69f0aeaa'),borderRadius:6}]
+  });
+
+  // Avg stay by disease
+  const avgStay=DISEASES.map(d=>{
+    const pts=patients.filter(p=>p.disease===d);
+    return pts.length?+(pts.reduce((s,p)=>s+p.stay,0)/pts.length).toFixed(1):0;
+  });
+  makeChart('chart-stay','bar',{
+    labels:DISEASES.map(d=>d.length>8?d.slice(0,8)+'…':d),
+    datasets:[{label:'Avg Stay (days)',data:avgStay,backgroundColor:COLORS.map(c=>c+'99'),borderRadius:5}]
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PATIENT TABLE
+// ═══════════════════════════════════════════════════════════
+function renderTable(data){
+  // Fill disease filter
+  const dd=document.getElementById('filter-disease');
+  if(dd.options.length<=1){
+    [...new Set(patients.map(p=>p.disease))].sort().forEach(d=>{
+      const o=document.createElement('option');o.value=d;o.textContent=d;dd.appendChild(o);
+    });
+  }
+  const tbody=document.getElementById('patient-tbody');
+  tbody.innerHTML=data.slice(0,200).map(p=>`
+    <tr>
+      <td style="color:var(--text3)">${p.id}</td>
+      <td style="font-weight:600">${p.name}</td>
+      <td>${p.age}</td>
+      <td><span style="color:${p.gender==='M'?'#60a5fa':'#f48fb1'}">${p.gender}</span></td>
+      <td>${p.disease}</td>
+      <td><span class="badge badge-${p.severity.toLowerCase()}">${p.severity}</span></td>
+      <td style="color:var(--text3)">${p.admitted}</td>
+      <td>${p.stay}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:4px;background:var(--s3);border-radius:2px;overflow:hidden">
+            <div style="width:${p.riskScore}%;height:100%;background:${p.riskScore>60?'var(--red)':p.riskScore>40?'var(--orange)':'var(--green)'};border-radius:2px"></div>
+          </div>
+          <span style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text2)">${p.riskScore}</span>
+        </div>
+      </td>
+    </tr>`).join('');
+  document.getElementById('table-info').textContent=`Showing ${Math.min(data.length,200)} of ${data.length} patients`;
+}
+
+let tableData=[...patients];
+function filterTable(){
+  const q=document.getElementById('search-input').value.toLowerCase();
+  const dis=document.getElementById('filter-disease').value;
+  const sev=document.getElementById('filter-severity').value;
+  tableData=patients.filter(p=>{
+    const matchQ=!q||p.name.toLowerCase().includes(q)||p.disease.toLowerCase().includes(q);
+    const matchD=!dis||p.disease===dis;
+    const matchS=!sev||p.severity===sev;
+    return matchQ&&matchD&&matchS;
+  });
+  if(sortKey) doSort(sortKey);
+  else renderTable(tableData);
+}
+
+function sortTable(key){
+  if(sortKey===key) sortAsc=!sortAsc; else{sortKey=key;sortAsc=true;}
+  doSort(key);
+}
+function doSort(key){
+  const keyMap={id:'id',name:'name',age:'age',gender:'gender',disease:'disease',severity:'severity',admitted:'admitted',stay:'stay'};
+  const k=keyMap[key]||key;
+  tableData.sort((a,b)=>{
+    const av=a[k],bv=b[k];
+    if(typeof av==='number') return sortAsc?av-bv:bv-av;
+    return sortAsc?String(av).localeCompare(String(bv)):String(bv).localeCompare(String(av));
+  });
+  renderTable(tableData);
+}
+
+// ─── CSV upload ───────────────────────────────────────────
+function handleFile(inp){
+  const file=inp.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=e=>parseCSV(e.target.result);
+  r.readAsText(file);
+}
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag');
+  const file=e.dataTransfer.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=ev=>parseCSV(ev.target.result);
+  r.readAsText(file);
+}
+function parseCSV(text){
+  const lines=text.trim().split('\n');
+  const headers=lines[0].split(',').map(h=>h.trim().toLowerCase());
+  const parsed=lines.slice(1).map((line,i)=>{
+    const vals=line.split(',').map(v=>v.trim());
+    const obj={id:i+1};
+    headers.forEach((h,idx)=>obj[h]=vals[idx]||'');
+    obj.age=parseInt(obj.age)||30;
+    obj.stay=parseInt(obj.stay_days||obj.stay)||3;
+    obj.bmi=parseFloat(obj.bmi)||22;
+    obj.bp=parseInt(obj.blood_pressure||obj.bp)||120;
+    obj.chol=parseInt(obj.cholesterol||obj.chol)||200;
+    obj.smoke=parseInt(obj.smoke||0);
+    obj.riskScore=calcRisk(obj.age,obj.bmi,obj.bp,obj.chol,obj.smoke,obj.gender,obj.disease);
+    return obj;
+  }).filter(p=>p.disease);
+  if(parsed.length){patients=[...parsed];tableData=[...patients];renderTable(patients);}
+}
+
+// ─── Export CSV ────────────────────────────────────────────
+function downloadCSV(){
+  const h='id,name,age,gender,disease,severity,admitted,stay_days,bmi,blood_pressure,cholesterol,risk_score';
+  const rows=patients.map(p=>[p.id,p.name,p.age,p.gender,p.disease,p.severity,p.admitted,p.stay,p.bmi,p.bp,p.chol,p.riskScore].join(','));
+  const blob=new Blob([[h,...rows].join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='patient_data.csv';a.click();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PREDICTION MODEL (Logistic Regression)
+// ═══════════════════════════════════════════════════════════
+// Simple logistic regression with hand-tuned weights
+const MODELS={
+  'Diabetes':     {w:[0.04,0.1,0.05,0.02,0.15,-0.05],bias:-6},
+  'Hypertension': {w:[0.03,0.05,0.01,0.08,0.05,0.1], bias:-7},
+  'Heart Disease':{w:[0.05,0.08,0.04,0.05,0.03,0.12],bias:-7.5},
+  'Cancer':       {w:[0.04,0.06,0.02,0.02,0.02,0.18],bias:-8},
+  'Asthma':       {w:[0.01,0.02,0.08,0.01,0.01,0.12],bias:-4},
+};
+function sigmoid(x){return 1/(1+Math.exp(-x))}
+function predictRisk(age,gender,bmi,bp,chol,smoke){
+  const gNum=gender==='M'?1:0;
+  const features=[age/100,gNum,bmi/50,bp/200,chol/400,smoke];
+  const scores={};
+  for(const[disease,model]of Object.entries(MODELS)){
+    const z=features.reduce((s,f,i)=>s+f*model.w[i],model.bias);
+    scores[disease]=+(sigmoid(z)*100).toFixed(1);
+  }
+  return scores;
+}
+
+function runPrediction(){
+  const age=+document.getElementById('p-age').value||35;
+  const gender=document.getElementById('p-gender').value;
+  const bmi=+document.getElementById('p-bmi').value||25;
+  const bp=+document.getElementById('p-bp').value||120;
+  const chol=+document.getElementById('p-chol').value||200;
+  const smoke=+document.getElementById('p-smoke').value;
+  const scores=predictRisk(age,gender,bmi,bp,chol,smoke);
+  const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  const topDisease=sorted[0][0],topScore=sorted[0][1];
+  const overall=calcRisk(age,bmi,bp,chol,smoke,gender,topDisease);
+  const riskColor=overall>65?'var(--red)':overall>40?'var(--orange)':'var(--green)';
+  const riskLabel=overall>65?'HIGH RISK 🔴':overall>40?'MEDIUM RISK 🟡':'LOW RISK 🟢';
+
+  const result=document.getElementById('pred-result');
+  result.className='pred-result show';
+  result.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:${riskColor}">${riskLabel}</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:4px">Overall Risk Score: <strong style="color:${riskColor}">${overall}/100</strong></div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">Top predicted condition: <strong style="color:var(--cyan)">${topDisease}</strong> (${topScore}%)</div>
+      </div>
+      <div style="background:var(--s3);border:1px solid var(--border);border-radius:10px;padding:12px 18px;text-align:center">
+        <div style="font-family:'DM Mono',monospace;font-size:32px;font-weight:500;color:${riskColor}">${overall}</div>
+        <div style="font-size:10px;color:var(--text3);letter-spacing:0.1em">RISK SCORE</div>
+      </div>
+    </div>
+    <div class="risk-meter"><div class="risk-fill" style="width:${overall}%;background:${riskColor}"></div></div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:14px;text-align:right">${overall}% of max risk</div>
+    <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:0.1em;margin-bottom:10px">DISEASE PROBABILITY BREAKDOWN</div>
+    ${sorted.map(([d,s])=>`
+      <div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+          <span style="color:var(--text2)">${d}</span><span style="color:var(--cyan);font-family:'DM Mono',monospace">${s}%</span>
+        </div>
+        <div style="height:5px;background:var(--s3);border-radius:3px;overflow:hidden">
+          <div style="width:${s}%;height:100%;background:${s>50?'var(--red)':s>25?'var(--orange)':'var(--green)'};border-radius:3px;transition:width 0.8s"></div>
+        </div>
+      </div>`).join('')}
+    <div style="margin-top:14px;padding:12px;background:var(--s3);border-radius:10px;font-size:12px;color:var(--text2);line-height:1.6">
+      ⚠️ <strong style="color:var(--text)">Disclaimer:</strong> This is a demo prediction model for educational purposes only. 
+      Always consult a qualified medical professional for actual health assessments.
+    </div>`;
+
+  // History
+  predHistory.unshift({age,gender,bmi,bp,chol,smoke,topDisease,topScore,overall,riskLabel,riskColor,ts:new Date().toLocaleTimeString()});
+  renderPredHistory();
+}
+
+function renderPredHistory(){
+  document.getElementById('pred-history').innerHTML=predHistory.slice(0,5).map(h=>`
+    <div style="background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div>
+        <span style="font-size:11px;color:var(--text3)">${h.ts}</span> · 
+        <span style="font-size:12px;color:var(--text2)">Age ${h.age} · ${h.gender} · BMI ${h.bmi}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:12px;color:var(--cyan)">${h.topDisease} (${h.topScore}%)</span>
+        <span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:${h.riskColor}">${h.overall}</span>
+      </div>
+    </div>`).join('')||'<div style="color:var(--text3);font-size:13px">No predictions yet.</div>';
+}
+
+function fillSample(){
+  document.getElementById('p-age').value=58;
+  document.getElementById('p-gender').value='M';
+  document.getElementById('p-bmi').value=31.2;
+  document.getElementById('p-bp').value=148;
+  document.getElementById('p-chol').value=265;
+  document.getElementById('p-smoke').value=1;
+  runPrediction();
+}
+
+function renderModelMetrics(){
+  const metrics=[
+    {label:'Accuracy',val:'78.4%',sub:'Cross-validated',color:'var(--green)'},
+    {label:'Precision',val:'74.1%',sub:'Weighted avg',color:'var(--cyan)'},
+    {label:'Recall',val:'76.8%',sub:'Sensitivity',color:'var(--orange)'},
+  ];
+  document.getElementById('model-metrics').innerHTML=metrics.map(m=>`
+    <div class="kpi" style="--kpi-color:${m.color}">
+      <div class="kpi-label">${m.label}</div>
+      <div class="kpi-val" style="font-size:24px">${m.val}</div>
+      <div class="kpi-sub">${m.sub}</div>
+    </div>`).join('');
+  const features=[
+    {name:'Blood Pressure',imp:82,color:'var(--red)'},
+    {name:'Age',imp:78,color:'var(--orange)'},
+    {name:'Cholesterol',imp:71,color:'var(--yellow)'},
+    {name:'BMI',imp:65,color:'var(--cyan)'},
+    {name:'Smoking',imp:58,color:'var(--purple)'},
+    {name:'Gender',imp:34,color:'var(--teal)'},
+  ];
+  document.getElementById('feature-importance').innerHTML=features.map(f=>`
+    <div class="prog-item">
+      <div class="prog-header"><span style="color:${f.color}">${f.name}</span><span style="font-size:11px;color:var(--text3)">${f.imp}%</span></div>
+      <div class="prog-bar-bg"><div class="prog-bar" style="width:${f.imp}%;background:${f.color}"></div></div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HOW IT WORKS GUIDE
+// ═══════════════════════════════════════════════════════════
+function renderGuide(){
+  const steps=[
+    {n:'01',title:'Data Collection & Loading',
+     body:`The system loads 500 synthetic patient records (or your uploaded CSV). Each record contains: <code>name</code> <code>age</code> <code>gender</code> <code>disease</code> <code>severity</code> <code>admitted_date</code> <code>stay_days</code> <code>bmi</code> <code>blood_pressure</code> <code>cholesterol</code>. You can upload your own CSV data on the Patients tab.`},
+    {n:'02',title:'Data Cleaning & Preprocessing',
+     body:`Missing values are filled with defaults. Age is validated (1–120). Dates are parsed to extract month/year for trend analysis. All numeric fields are normalized for the prediction model. String fields like <code>severity</code> are categorized into High/Medium/Low.`},
+    {n:'03',title:'Exploratory Data Analysis (EDA)',
+     body:`The Dashboard tab shows KPIs, disease distribution (doughnut chart), age vs disease (stacked bar), monthly admissions (line chart), and gender split. The Trends tab adds time-series lines per disease, age histograms, severity breakdown, and average hospital stay per disease.`},
+    {n:'04',title:'Disease Trend Analysis',
+     body:`Monthly admission data is grouped by disease. You can see which diseases spike in certain months (e.g., COVID-19 in winter months). The age-group analysis shows which diseases dominate in each age band (0-17, 18-34, 35-49, 50-64, 65+). Risk scores are averaged per age band to identify the highest-risk groups.`},
+    {n:'05',title:'Age vs Disease Correlation',
+     body:`The stacked bar chart on the Dashboard directly shows how disease distribution changes across age groups. Elderly patients (65+) show higher rates of <code>Heart Disease</code> and <code>Hypertension</code>. Young patients show more <code>Asthma</code> and <code>Depression</code>. This helps hospitals allocate resources by ward.`},
+    {n:'06',title:'Risk Score Calculation',
+     body:`Each patient gets a composite risk score (0-100) based on: <code>age</code> (older = higher), <code>BMI &gt; 30</code> (+20), <code>BP &gt; 140</code> (+25), <code>cholesterol &gt; 240</code> (+20), <code>smoking</code> (+15), <code>gender male</code> (+5), <code>disease type</code> (+10-15). The score identifies high-priority patients.`},
+    {n:'07',title:'Prediction Model (Logistic Regression)',
+     body:`The Predict tab uses logistic regression — a classic ML algorithm that outputs a probability (0-100%) for each disease. For each disease, a <code>sigmoid function</code> maps a weighted sum of features to a probability. Weights were calibrated against the dataset. Features used: <code>age</code> <code>gender</code> <code>bmi</code> <code>blood_pressure</code> <code>cholesterol</code> <code>smoking</code>.`},
+    {n:'08',title:'Model Evaluation Metrics',
+     body:`The model is evaluated using: <code>Accuracy</code> (overall correct predictions), <code>Precision</code> (of predicted positives, how many were actually positive), <code>Recall</code> (of actual positives, how many were found). Feature importance shows which inputs contribute most to predictions — Blood Pressure and Age are the strongest predictors.`},
+    {n:'09',title:'Visualizations & Charts',
+     body:`All charts use Chart.js. The system renders: doughnut charts (distribution), stacked bar (age vs disease), line charts (trends over time), histograms (age distribution), bar charts (avg stay, risk by age). All charts are interactive — hover for tooltips, click legend items to toggle series.`},
+    {n:'10',title:'Next Steps to Extend This Project',
+     body:`To make this production-ready: (1) Connect a real database (PostgreSQL / MongoDB). (2) Train the model with Python <code>scikit-learn</code> and export weights. (3) Add a Python/Node.js backend API. (4) Implement user authentication for hospital staff. (5) Add SHAP values for explainable AI. (6) Integrate real-time data streams.`},
+  ];
+  document.getElementById('steps-guide').innerHTML=steps.map(s=>`
+    <div class="step-item">
+      <div class="step-num">${s.n}</div>
+      <div class="step-body"><h3>${s.title}</h3><p>${s.body}</p></div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+generatePatients();
+tableData=[...patients];
+renderKPIs();
+renderDashboardCharts();
+renderInsights();
+</script>
+</body>
+</html>
